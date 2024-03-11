@@ -16,12 +16,14 @@ use rect_elem::{RectElement, highlighted_color};
 
 use super::{Cursor, LabelFormatter, PlotBounds, PlotTransform};
 
+pub use arc_pie::{ArcLine, Pie, PieChart};
 pub use bar::Bar;
 pub use box_elem::{BoxElem, BoxSpread};
 pub use values::{
     ClosestElem, LineStyle, MarkerShape, Orientation, PlotGeometry, PlotPoint, PlotPoints,
 };
 
+mod arc_pie;
 mod bar;
 mod box_elem;
 mod rect_elem;
@@ -49,6 +51,7 @@ impl PlotItemBase {
     }
 }
 
+#[macro_export]
 macro_rules! builder_methods_for_base {
     () => {
         /// Name of this plot item.
