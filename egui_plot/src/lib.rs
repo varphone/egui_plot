@@ -189,6 +189,7 @@ pub struct Plot<'a> {
     grid_spacing: Rangef,
     grid_spacers: [GridSpacer<'a>; 2],
     clamp_grid: bool,
+    grid_color: Option<Color32>,
 
     sense: Sense,
 }
@@ -236,6 +237,7 @@ impl<'a> Plot<'a> {
             grid_spacing: Rangef::new(8.0, 300.0),
             grid_spacers: [log_grid_spacer(10), log_grid_spacer(10)],
             clamp_grid: false,
+            grid_color: None,
 
             sense: egui::Sense::click_and_drag(),
         }
@@ -489,6 +491,17 @@ impl<'a> Plot<'a> {
     #[inline]
     pub fn clamp_grid(mut self, clamp_grid: bool) -> Self {
         self.clamp_grid = clamp_grid;
+        self
+    }
+
+    /// Set the color of the grid lines.
+    ///
+    /// It's beneficial to set this to a color with low alpha, different from `text_color`, to make the grid less obtrusive.
+    ///
+    /// Default: `None`, which means the grid color is determined by the [`Visuals::text_color`].
+    #[inline]
+    pub fn grid_color(mut self, grid_color: impl Into<Color32>) -> Self {
+        self.grid_color = Some(grid_color.into());
         self
     }
 
@@ -775,6 +788,7 @@ impl<'a> Plot<'a> {
 
             clamp_grid,
             grid_spacers,
+            grid_color,
             sense,
         } = self;
 
@@ -1198,6 +1212,7 @@ impl<'a> Plot<'a> {
             cursor_color,
             grid_spacers,
             clamp_grid,
+            grid_color,
         };
 
         let (plot_cursors, mut hovered_plot_item) = prepared.ui(ui, &response);
@@ -1493,6 +1508,7 @@ struct PreparedPlot<'a> {
     cursor_color: Option<Color32>,
 
     clamp_grid: bool,
+    grid_color: Option<Color32>,
 }
 
 impl<'a> PreparedPlot<'a> {
@@ -1591,6 +1607,7 @@ impl<'a> PreparedPlot<'a> {
             // axis_formatters,
             grid_spacers,
             clamp_grid,
+            grid_color,
             ..
         } = self;
 
@@ -1615,6 +1632,8 @@ impl<'a> PreparedPlot<'a> {
             }
             tight_bounds
         });
+
+        let grid_color = grid_color.unwrap_or(ui.visuals().text_color());
 
         for step in steps {
             let value_main = step.value;
@@ -1648,7 +1667,7 @@ impl<'a> PreparedPlot<'a> {
 
             let line_strength = remap_clamp(spacing_in_points, fade_range, 0.0..=1.0);
 
-            let line_color = color_from_strength(ui, line_strength);
+            let line_color = color_from_strength(grid_color, line_strength);
 
             let mut p0 = pos_in_gui;
             let mut p1 = pos_in_gui;
@@ -1866,7 +1885,6 @@ pub fn format_number(number: f64, num_decimals: usize) -> String {
 }
 
 /// Determine a color from a 0-1 strength value.
-pub fn color_from_strength(ui: &Ui, strength: f32) -> Color32 {
-    let base_color = ui.visuals().text_color();
+pub fn color_from_strength(base_color: Color32, strength: f32) -> Color32 {
     base_color.gamma_multiply(strength.sqrt())
 }
