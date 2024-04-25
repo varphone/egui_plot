@@ -1,4 +1,5 @@
-use super::{Id, PlotBounds, PlotGeometry, PlotItem, PlotPoint, PlotTransform};
+use super::{Id, PlotBounds, PlotGeometry, PlotItem, PlotItemBase, PlotPoint, PlotTransform};
+use crate::builder_methods_for_base;
 use crate::items::{ClosestElem, PlotConfig};
 use crate::{
     Align2, Color32, Cursor, LabelFormatter, LineStyle, Pos2, Shape, Stroke, TextStyle, Ui,
@@ -8,16 +9,13 @@ use std::ops::RangeInclusive;
 /// A arc line in a plot.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ArcLine {
+    base: PlotItemBase,
     pub(crate) center: PlotPoint,
     pub(crate) radius: f64,
     pub(crate) start_angle: f32,
     pub(crate) end_angle: f32,
-    pub(crate) name: String,
-    pub(crate) highlight: bool,
-    pub(crate) allow_hover: bool,
     pub(crate) stroke: Stroke,
     pub(crate) style: LineStyle,
-    id: Option<Id>,
 }
 
 impl ArcLine {
@@ -25,27 +23,26 @@ impl ArcLine {
     ///
     /// # Arguments
     ///
+    /// * `name` - The name of the arc line.
     /// * `center` - The center of the arc line.
     /// * `radius` - The radius of the arc line in plot coordinates.
     /// * `start_angle` - The start angle of the arc line in radians.
     /// * `end_angle` - The end angle of the arc line in radians.
     pub fn new(
+        name: impl Into<String>,
         center: impl Into<PlotPoint>,
         radius: f64,
         start_angle: f32,
         end_angle: f32,
     ) -> Self {
         Self {
+            base: PlotItemBase::new(name.into()),
             center: center.into(),
             radius,
             start_angle,
             end_angle,
-            name: Default::default(),
-            highlight: false,
-            allow_hover: true,
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
             style: LineStyle::Solid,
-            id: None,
         }
     }
 
@@ -77,27 +74,6 @@ impl ArcLine {
         self
     }
 
-    /// Set the name of the arc line.
-    #[inline]
-    pub fn name(mut self, name: impl Into<String>) -> Self {
-        self.name = name.into();
-        self
-    }
-
-    /// Set the highlight state of the arc line.
-    #[inline]
-    pub fn highlight(mut self, highlight: bool) -> Self {
-        self.highlight = highlight;
-        self
-    }
-
-    /// Set the hover state of the arc line.
-    #[inline]
-    pub fn allow_hover(mut self, allow_hover: bool) -> Self {
-        self.allow_hover = allow_hover;
-        self
-    }
-
     /// Set the stroke of the arc line.
     #[inline]
     pub fn stroke(mut self, stroke: Stroke) -> Self {
@@ -121,12 +97,7 @@ impl ArcLine {
         self
     }
 
-    /// Set the id of the arc line.
-    #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
-        self
-    }
+    builder_methods_for_base!();
 }
 
 impl PlotItem for ArcLine {
@@ -140,7 +111,7 @@ impl PlotItem for ArcLine {
         let mut stroke = self.stroke;
 
         // Expand the radius with stroke width if the item is highlighted
-        if self.highlight {
+        if self.highlighted() {
             stroke.width *= 2.0;
         }
 
@@ -149,24 +120,16 @@ impl PlotItem for ArcLine {
 
     fn initialize(&mut self, _x_range: RangeInclusive<f64>) {}
 
-    fn name(&self) -> &str {
-        &self.name
-    }
-
     fn color(&self) -> Color32 {
         self.stroke.color
     }
 
-    fn highlight(&mut self) {
-        self.highlight = true;
+    fn base(&self) -> &PlotItemBase {
+        &self.base
     }
 
-    fn highlighted(&self) -> bool {
-        self.highlight
-    }
-
-    fn allow_hover(&self) -> bool {
-        self.allow_hover
+    fn base_mut(&mut self) -> &mut PlotItemBase {
+        &mut self.base
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {
@@ -176,27 +139,20 @@ impl PlotItem for ArcLine {
     fn bounds(&self) -> PlotBounds {
         calculate_arc_bounds(self.center, self.radius, self.start_angle, self.end_angle)
     }
-
-    fn id(&self) -> Option<Id> {
-        self.id
-    }
 }
 
 /// A pie in a plot.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Pie {
+    base: PlotItemBase,
     pub(crate) center: PlotPoint,
     pub(crate) radius: f64,
     pub(crate) start_angle: f32,
     pub(crate) end_angle: f32,
-    pub(crate) name: String,
-    pub(crate) highlight: bool,
-    pub(crate) allow_hover: bool,
     pub(crate) fill: Color32,
     pub(crate) stroke: Stroke,
     pub(crate) style: LineStyle,
     shrink_or_expand: Option<f32>,
-    id: Option<Id>,
 }
 
 impl Pie {
@@ -204,29 +160,28 @@ impl Pie {
     ///
     /// # Arguments
     ///
+    /// * `name` - The name of the pie.
     /// * `center` - The center of the pie.
     /// * `radius` - The radius of the pie in plot coordinates.
     /// * `start_angle` - The start angle of the pie in radians.
     /// * `end_angle` - The end angle of the pie in radians.
     pub fn new(
+        name: impl Into<String>,
         center: impl Into<PlotPoint>,
         radius: f64,
         start_angle: f32,
         end_angle: f32,
     ) -> Self {
         Self {
+            base: PlotItemBase::new(name.into()),
             center: center.into(),
             radius,
             start_angle,
             end_angle,
-            name: Default::default(),
-            highlight: false,
-            allow_hover: true,
             fill: Color32::TRANSPARENT,
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
             style: LineStyle::Solid,
             shrink_or_expand: None,
-            id: None,
         }
     }
 
@@ -255,27 +210,6 @@ impl Pie {
     #[inline]
     pub fn end_angle(mut self, end_angle: f32) -> Self {
         self.end_angle = end_angle;
-        self
-    }
-
-    /// Set the name of the pie.
-    #[inline]
-    pub fn name(mut self, name: impl Into<String>) -> Self {
-        self.name = name.into();
-        self
-    }
-
-    /// Set the highlight state of the pie.
-    #[inline]
-    pub fn highlight(mut self, highlight: bool) -> Self {
-        self.highlight = highlight;
-        self
-    }
-
-    /// Set the hover state of the pie.
-    #[inline]
-    pub fn allow_hover(mut self, allow_hover: bool) -> Self {
-        self.allow_hover = allow_hover;
         self
     }
 
@@ -314,12 +248,7 @@ impl Pie {
         self
     }
 
-    /// Set the id of the pie.
-    #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
-        self
-    }
+    builder_methods_for_base!();
 }
 
 impl PlotItem for Pie {
@@ -348,7 +277,7 @@ impl PlotItem for Pie {
         }
 
         // Expand the radius with stroke width if the item is highlighted
-        if self.highlight {
+        if self.highlighted() {
             radius += (stroke.width * 2.0).clamp(2.0, 10.0);
         }
 
@@ -364,24 +293,16 @@ impl PlotItem for Pie {
 
     fn initialize(&mut self, _x_range: RangeInclusive<f64>) {}
 
-    fn name(&self) -> &str {
-        &self.name
-    }
-
     fn color(&self) -> Color32 {
         self.fill
     }
 
-    fn highlight(&mut self) {
-        self.highlight = true;
+    fn base(&self) -> &PlotItemBase {
+        &self.base
     }
 
-    fn highlighted(&self) -> bool {
-        self.highlight
-    }
-
-    fn allow_hover(&self) -> bool {
-        self.allow_hover
+    fn base_mut(&mut self) -> &mut PlotItemBase {
+        &mut self.base
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {
@@ -390,10 +311,6 @@ impl PlotItem for Pie {
 
     fn bounds(&self) -> PlotBounds {
         calculate_arc_bounds(self.center, self.radius, self.start_angle, self.end_angle)
-    }
-
-    fn id(&self) -> Option<Id> {
-        self.id
     }
 
     fn find_closest(&self, point: Pos2, transform: &PlotTransform) -> Option<ClosestElem> {
@@ -435,7 +352,7 @@ impl PlotItem for Pie {
                 plot.transform
                     .position_from_point(&PlotPoint::new(center.x, center.y)),
                 Align2::CENTER_CENTER,
-                &self.name,
+                self.name(),
                 font_id,
                 color,
             ));
@@ -444,18 +361,15 @@ impl PlotItem for Pie {
 }
 
 pub struct PieChart {
+    base: PlotItemBase,
     pub(crate) center: PlotPoint,
     pub(crate) radius: f64,
-    pub(crate) name: String,
-    pub(crate) highlight: bool,
-    pub(crate) allow_hover: bool,
     pub(crate) stroke: Stroke,
     pub(crate) data: Vec<f64>,
     pub(crate) colors: Vec<Color32>,
     pub(crate) labels: Vec<String>,
     pub(crate) style: LineStyle,
     pub(crate) shrink_or_expand: Option<f32>,
-    id: Option<Id>,
 }
 
 impl PieChart {
@@ -463,23 +377,26 @@ impl PieChart {
     ///
     /// # Arguments
     ///
+    /// * `name` - The name of the pie chart.
     /// * `center` - The center of the pie chart.
     /// * `radius` - The radius of the pie chart in plot coordinates.
     /// * `data` - The data of the pie chart.
-    pub fn new(center: impl Into<PlotPoint>, radius: f64, data: Vec<f64>) -> Self {
+    pub fn new(
+        name: impl Into<String>,
+        center: impl Into<PlotPoint>,
+        radius: f64,
+        data: Vec<f64>,
+    ) -> Self {
         Self {
+            base: PlotItemBase::new(name.into()),
             center: center.into(),
             radius,
-            name: Default::default(),
-            highlight: false,
-            allow_hover: true,
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
             data,
             colors: vec![],
             labels: vec![],
             style: LineStyle::Solid,
             shrink_or_expand: None,
-            id: None,
         }
     }
 
@@ -494,27 +411,6 @@ impl PieChart {
     #[inline]
     pub fn radius(mut self, radius: f64) -> Self {
         self.radius = radius;
-        self
-    }
-
-    /// Set the name of the pie chart.
-    #[inline]
-    pub fn name(mut self, name: impl Into<String>) -> Self {
-        self.name = name.into();
-        self
-    }
-
-    /// Set the highlight state of the pie chart.
-    #[inline]
-    pub fn highlight(mut self, highlight: bool) -> Self {
-        self.highlight = highlight;
-        self
-    }
-
-    /// Set the hover state of the pie chart.
-    #[inline]
-    pub fn allow_hover(mut self, allow_hover: bool) -> Self {
-        self.allow_hover = allow_hover;
         self
     }
 
@@ -573,13 +469,6 @@ impl PieChart {
         self
     }
 
-    /// Set the id of the pie chart.
-    #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
-        self
-    }
-
     /// Convert the pie chart to a list of pies.
     pub fn to_pies(&self) -> Vec<Pie> {
         use std::f64::consts::TAU;
@@ -593,6 +482,7 @@ impl PieChart {
             let name = self.labels.get(i).map_or(Default::default(), |s| s.clone());
             let fill = self.colors.get(i).map_or(default_color, |v| *v);
             let pie = Pie::new(
+                format!("{}-{}", self.name(), name),
                 self.center,
                 self.radius,
                 start_angle as f32,
@@ -621,36 +511,31 @@ impl PieChart {
         }
         pies
     }
+
+    builder_methods_for_base!();
 }
 
 impl PlotItem for PieChart {
     fn shapes(&self, ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let pies = self.to_pies();
         for pie in pies {
-            pie.highlight(self.highlight).shapes(ui, transform, shapes);
+            pie.highlight(self.highlighted())
+                .shapes(ui, transform, shapes);
         }
     }
 
     fn initialize(&mut self, _x_range: RangeInclusive<f64>) {}
 
-    fn name(&self) -> &str {
-        &self.name
+    fn base(&self) -> &PlotItemBase {
+        &self.base
+    }
+
+    fn base_mut(&mut self) -> &mut PlotItemBase {
+        &mut self.base
     }
 
     fn color(&self) -> Color32 {
         Color32::TRANSPARENT
-    }
-
-    fn highlight(&mut self) {
-        self.highlight = true;
-    }
-
-    fn highlighted(&self) -> bool {
-        self.highlight
-    }
-
-    fn allow_hover(&self) -> bool {
-        self.allow_hover
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {
@@ -661,10 +546,6 @@ impl PlotItem for PieChart {
         let min_point = [self.center.x - self.radius, self.center.y - self.radius];
         let max_point = [self.center.x + self.radius, self.center.y + self.radius];
         PlotBounds::from_min_max(min_point, max_point)
-    }
-
-    fn id(&self) -> Option<Id> {
-        self.id
     }
 
     fn find_closest(&self, point: Pos2, transform: &PlotTransform) -> Option<ClosestElem> {
