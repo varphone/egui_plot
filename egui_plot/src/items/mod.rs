@@ -50,6 +50,7 @@ impl PlotItemBase {
     }
 }
 
+#[macro_export]
 macro_rules! builder_methods_for_base {
     () => {
         /// Name of this plot item.
@@ -1089,6 +1090,7 @@ pub struct PlotImage {
     pub(crate) rotation: f64,
     pub(super) bg_fill: Color32,
     pub(super) tint: Color32,
+    pub(super) auto_fit: bool,
 }
 
 impl PlotImage {
@@ -1108,6 +1110,7 @@ impl PlotImage {
             rotation: 0.0,
             bg_fill: Default::default(),
             tint: Color32::WHITE,
+            auto_fit: false,
         }
     }
 
@@ -1140,6 +1143,21 @@ impl PlotImage {
     }
 
     builder_methods_for_base!();
+
+    /// Fit the image to the size of the plot clip rect.
+    ///
+    /// This will scale the image to fit the plot clip rect, while maintaining the aspect ratio.
+    /// The image will be centered in the clip rect.
+    ///
+    /// The `position` parameter will be ignored.
+    /// The `size` parameter must be set to the original size of the image.
+    ///
+    /// Default is `false`.
+    #[inline]
+    pub fn auto_fit(mut self, auto_fit: bool) -> Self {
+        self.auto_fit = auto_fit;
+        self
+    }
 }
 
 impl PlotItem for PlotImage {
@@ -1153,9 +1171,22 @@ impl PlotItem for PlotImage {
             bg_fill,
             tint,
             base,
+            auto_fit,
             ..
         } = self;
-        let image_screen_rect = {
+        let image_screen_rect = if *auto_fit {
+            let clip_rect = ui.clip_rect().shrink(2.0);
+            let clip_size = clip_rect.max - clip_rect.min;
+            let clip_aspect = clip_size.x / clip_size.y;
+            let image_aspect = size.x / size.y;
+            let scale = if clip_aspect > image_aspect {
+                clip_size.y / size.y
+            } else {
+                clip_size.x / size.x
+            };
+            let scaled_size = *size * scale;
+            Rect::from_center_size(clip_rect.center(), scaled_size)
+        } else {
             let left_top = PlotPoint::new(
                 position.x - 0.5 * size.x as f64,
                 position.y - 0.5 * size.y as f64,
@@ -1213,16 +1244,18 @@ impl PlotItem for PlotImage {
 
     fn bounds(&self) -> PlotBounds {
         let mut bounds = PlotBounds::NOTHING;
-        let left_top = PlotPoint::new(
-            self.position.x as f32 - self.size.x / 2.0,
-            self.position.y as f32 - self.size.y / 2.0,
-        );
-        let right_bottom = PlotPoint::new(
-            self.position.x as f32 + self.size.x / 2.0,
-            self.position.y as f32 + self.size.y / 2.0,
-        );
-        bounds.extend_with(&left_top);
-        bounds.extend_with(&right_bottom);
+        if !self.auto_fit {
+            let left_top = PlotPoint::new(
+                self.position.x as f32 - self.size.x / 2.0,
+                self.position.y as f32 - self.size.y / 2.0,
+            );
+            let right_bottom = PlotPoint::new(
+                self.position.x as f32 + self.size.x / 2.0,
+                self.position.y as f32 + self.size.y / 2.0,
+            );
+            bounds.extend_with(&left_top);
+            bounds.extend_with(&right_bottom);
+        }
         bounds
     }
 
