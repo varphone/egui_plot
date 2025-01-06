@@ -2,6 +2,7 @@
 #![allow(clippy::type_complexity)] // TODO(emilk): simplify some of the callback types with type aliases
 
 use std::ops::RangeInclusive;
+use std::sync::Arc;
 
 use egui::{
     emath::Rot2,
@@ -588,7 +589,7 @@ impl PlotItem for Line {
             let last = values_tf[n_values - 1];
             mesh.colored_vertex(last, fill_color);
             mesh.colored_vertex(pos2(last.x, y), fill_color);
-            shapes.push(Shape::Mesh(mesh));
+            shapes.push(Shape::Mesh(Arc::new(mesh)));
         }
         style.style_line(values_tf, *stroke, *highlight, shapes);
     }
