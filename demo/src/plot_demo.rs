@@ -829,12 +829,14 @@ impl ItemsDemo {
         );
 
         let arc_line = ArcLine::new(
+            "arcline",
             PlotPoint::new(0.0, -10.0),
             3.0,
             225.0f32.to_radians(),
             135.0f32.to_radians(),
         );
         let pie = Pie::new(
+            "pie",
             PlotPoint::new(0.0, -10.0),
             3.0,
             -45.0f32.to_radians(),
@@ -1225,10 +1227,10 @@ impl ChartsDemo {
             "SQL".to_owned(),
             "Others".to_owned(),
         ];
-        let pie_chart1 = PieChart::new([-6.0, 0.0], 5.0, data.clone())
-            .name("TIOBE - April 2024")
+        let pie_chart1 = PieChart::new("TIOBE - April 2024 (L)", [-6.0, 0.0], 5.0, data.clone())
             .labels(labels.clone());
-        let pie_chart2 = PieChart::new([6.0, 0.0], 5.0, data).labels(labels);
+        let pie_chart2 =
+            PieChart::new("TIOBE - April 2024 (R)", [6.0, 0.0], 5.0, data).labels(labels);
         Plot::new("Pie Chart Demo")
             .legend(Legend::default())
             .auto_bounds(Vec2b::TRUE)
