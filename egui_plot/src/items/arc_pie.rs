@@ -340,7 +340,7 @@ impl PlotItem for Pie {
     ) {
         // let text = format!("{}", self.name);
         let font_id = TextStyle::Body.resolve(plot.ui.style());
-        plot.ui.fonts(|f| {
+        plot.ui.fonts_mut(|f| {
             let center = center_of_pie(
                 self.center.to_pos2(),
                 self.radius as f32,
@@ -581,7 +581,7 @@ impl PlotItem for PieChart {
             format!("{value}")
         };
         let font_id = TextStyle::Body.resolve(plot.ui.style());
-        plot.ui.fonts(|f| {
+        plot.ui.fonts_mut(|f| {
             let (start_angle, end_angle) = angles[elem.index];
             let center = center_of_pie(
                 self.center.to_pos2(),
