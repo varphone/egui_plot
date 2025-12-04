@@ -732,6 +732,7 @@ pub struct Text {
     pub(super) position: PlotPoint,
     pub(super) color: Color32,
     pub(super) anchor: Align2,
+    pub(super) angle: f32,
 }
 
 impl Text {
@@ -742,6 +743,7 @@ impl Text {
             position,
             color: Color32::TRANSPARENT,
             anchor: Align2::CENTER_CENTER,
+            angle: 0.0,
         }
     }
 
@@ -756,6 +758,14 @@ impl Text {
     #[inline]
     pub fn anchor(mut self, anchor: Align2) -> Self {
         self.anchor = anchor;
+        self
+    }
+
+    /// Rotate text by this many radians clockwise.
+    /// The pivot is pos (the upper left corner of the text).
+    #[inline]
+    pub fn angle(mut self, angle: impl Into<f32>) -> Self {
+        self.angle = angle.into();
         self
     }
 
@@ -778,17 +788,67 @@ impl PlotItem for Text {
         );
 
         let pos = transform.position_from_point(&self.position);
-        let rect = self.anchor.anchor_size(pos, galley.size());
+        let size = galley.size();
+        let rect = self.anchor.anchor_size(pos, size);
 
-        shapes.push(TextShape::new(rect.min, galley, color).into());
+        // TextShape::with_angle rotates around the position passed to new(),
+        // which should be the top-left corner (rect.min) for unrotated text.
+        // When rotating, we want to rotate around the anchor point (pos), not rect.min.
+        // So we need to:
+        // 1. Calculate where rect.min is relative to pos
+        // 2. Rotate that vector around pos
+        // 3. Use the rotated position as the new rect.min
+        let text_pos = if self.angle != 0.0 {
+            // Vector from anchor point to rect.min
+            let offset = rect.min - pos;
+            // Rotate this vector around the origin
+            let rotated_offset = Rot2::from_angle(self.angle) * offset;
+            // New position is anchor point plus rotated offset
+            pos + rotated_offset
+        } else {
+            rect.min
+        };
+
+        shapes.push(
+            TextShape::new(text_pos, galley, color)
+                .with_angle(self.angle)
+                .into(),
+        );
 
         if self.base.highlight {
-            shapes.push(Shape::rect_stroke(
-                rect.expand(1.0),
-                1.0,
-                Stroke::new(0.5, color),
-                egui::StrokeKind::Outside,
-            ));
+            if self.angle != 0.0 {
+                // For rotated text, draw a rotated polygon outline
+                let rect = self.anchor.anchor_size(pos, size).expand(1.0);
+                let rotation = Rot2::from_angle(self.angle);
+
+                // Calculate the four corners of the rect, rotated around the anchor point
+                let corners = [
+                    rect.left_top(),
+                    rect.right_top(),
+                    rect.right_bottom(),
+                    rect.left_bottom(),
+                ];
+
+                let rotated_corners: Vec<Pos2> = corners
+                    .iter()
+                    .map(|&corner| {
+                        let offset = corner - pos;
+                        let rotated_offset = rotation * offset;
+                        pos + rotated_offset
+                    })
+                    .collect();
+
+                shapes.push(Shape::closed_line(rotated_corners, Stroke::new(0.5, color)));
+            } else {
+                // For non-rotated text, use a simple rect
+                let rect = self.anchor.anchor_size(pos, size);
+                shapes.push(Shape::rect_stroke(
+                    rect.expand(1.0),
+                    1.0,
+                    Stroke::new(0.5, color),
+                    egui::StrokeKind::Outside,
+                ));
+            }
         }
     }
 
