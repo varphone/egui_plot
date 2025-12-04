@@ -24,6 +24,7 @@ enum Panel {
     Interaction,
     CustomAxes,
     LinkedAxes,
+    Text,
 }
 
 impl Default for Panel {
@@ -44,6 +45,7 @@ pub struct PlotDemo {
     interaction_demo: InteractionDemo,
     custom_axes_demo: CustomAxesDemo,
     linked_axes_demo: LinkedAxesDemo,
+    text_demo: TextDemo,
     open_panel: Panel,
 }
 
@@ -124,6 +126,7 @@ impl PlotDemo {
             ui.selectable_value(&mut self.open_panel, Panel::Interaction, "Interaction");
             ui.selectable_value(&mut self.open_panel, Panel::CustomAxes, "Custom Axes");
             ui.selectable_value(&mut self.open_panel, Panel::LinkedAxes, "Linked Axes");
+            ui.selectable_value(&mut self.open_panel, Panel::Text, "Text");
         });
         ui.separator();
 
@@ -151,6 +154,9 @@ impl PlotDemo {
             }
             Panel::LinkedAxes => {
                 self.linked_axes_demo.ui(ui);
+            }
+            Panel::Text => {
+                self.text_demo.ui(ui);
             }
         }
     }
@@ -1250,6 +1256,84 @@ impl ChartsDemo {
                 }
             })
             .response
+    }
+}
+
+#[derive(PartialEq, serde::Deserialize, serde::Serialize)]
+struct TextDemo {
+    x_align: egui::Align,
+    y_align: egui::Align,
+    angle: f32,
+}
+
+impl TextDemo {
+    fn new() -> Self {
+        Self {
+            x_align: egui::Align::Center,
+            y_align: egui::Align::Center,
+            angle: 0.0,
+        }
+    }
+
+    fn ui(&mut self, ui: &mut egui::Ui) -> Response {
+        ScrollArea::horizontal().show(ui, |ui| {
+            self.settings_ui(ui);
+        });
+
+        let legend_plot = Plot::new("text_demo").data_aspect(1.0).legend(
+            Legend::default()
+                .position(Corner::RightTop)
+                .title("Text Alignment and Rotation"),
+        );
+        legend_plot
+            .show(ui, |plot_ui| {
+                let line1 = Line::new("Cross", vec![[-1.0, 1.0], [1.0, -1.0]])
+                    .style(LineStyle::Solid)
+                    .color(Color32::CYAN);
+                let line2 = Line::new("Cross", vec![[-1.0, -1.0], [1.0, 1.0]])
+                    .style(LineStyle::Solid)
+                    .color(Color32::CYAN);
+                plot_ui.line(line1);
+                plot_ui.line(line2);
+                let text = egui::RichText::new("Rotated Text").size(20.0);
+                plot_ui.text(
+                    Text::new("Text", PlotPoint::new(0.0, 0.0), text)
+                        .anchor(egui::Align2([self.x_align, self.y_align]))
+                        .angle(self.angle.to_radians())
+                        .id("text"),
+                );
+            })
+            .response
+    }
+
+    fn settings_ui(&mut self, ui: &mut egui::Ui) {
+        egui::Grid::new("settings").show(ui, |ui| {
+            ui.label("X Align:");
+            ui.horizontal(|ui| {
+                let x_aligns = [egui::Align::Min, egui::Align::Center, egui::Align::Max];
+                for align in x_aligns {
+                    ui.selectable_value(&mut self.x_align, align, format!("{align:?}"));
+                }
+            });
+            ui.end_row();
+            ui.label("Y Align:");
+            ui.horizontal(|ui| {
+                let y_aligns = [egui::Align::Min, egui::Align::Center, egui::Align::Max];
+                for align in y_aligns {
+                    ui.selectable_value(&mut self.y_align, align, format!("{align:?}"));
+                }
+            });
+            ui.end_row();
+            ui.label("Angle (degrees):");
+            ui.add(egui::DragValue::new(&mut self.angle).speed(1.0).suffix("°"));
+            ui.end_row();
+        });
+    }
+}
+
+impl Default for TextDemo {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
