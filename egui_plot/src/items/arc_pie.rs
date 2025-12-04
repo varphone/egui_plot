@@ -605,14 +605,14 @@ impl PlotItem for PieChart {
 
 /// Calculate the fill color of the pie chart.
 fn auto_color(start_angle: f64, end_angle: f64) -> Color32 {
-    let mid_angle = (start_angle + end_angle) / 2.0;
+    let mid_angle = f64::midpoint(start_angle, end_angle);
     let h = mid_angle.abs() / std::f64::consts::TAU;
     crate::epaint::Hsva::new(h as f32, 0.95, 0.85, 0.95).into()
 }
 
 /// Calculate the inverted fill color of the pie chart.
 fn auto_color_inverted(start_angle: f64, end_angle: f64) -> Color32 {
-    let mid_angle = (start_angle + end_angle) / 2.0;
+    let mid_angle = f64::midpoint(start_angle, end_angle);
     let h = (mid_angle.abs() / std::f64::consts::TAU + 0.5) % 1.0;
     crate::epaint::Hsva::new(h as f32, 0.95, 0.85, 0.95).into()
 }
@@ -652,7 +652,7 @@ fn shrink_or_expand_pie(
     let new_radius = radius + move_distance;
 
     // Calculate the direction of the midline
-    let mid_angle = (start_angle + end_angle) / 2.0;
+    let mid_angle = f32::midpoint(start_angle, end_angle);
     let direction = Pos2 {
         x: mid_angle.cos(),
         y: mid_angle.sin(),
@@ -696,7 +696,7 @@ fn contains_in_pie(
 }
 
 fn center_of_pie(center: Pos2, radius: f32, start_angle: f32, end_angle: f32) -> Pos2 {
-    let mid_angle = (start_angle + end_angle) / 2.0;
+    let mid_angle = f32::midpoint(start_angle, end_angle);
     let direction = Pos2 {
         x: mid_angle.cos(),
         y: mid_angle.sin(),
