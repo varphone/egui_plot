@@ -1227,6 +1227,7 @@ pub struct PlotImage {
     pub(super) bg_fill: Color32,
     pub(super) tint: Color32,
     pub(super) auto_fit: bool,
+    pub(super) guide_lines: bool,
 }
 
 impl PlotImage {
@@ -1247,6 +1248,7 @@ impl PlotImage {
             bg_fill: Default::default(),
             tint: Color32::WHITE,
             auto_fit: false,
+            guide_lines: false,
         }
     }
 
@@ -1292,6 +1294,13 @@ impl PlotImage {
     #[inline]
     pub fn auto_fit(mut self, auto_fit: bool) -> Self {
         self.auto_fit = auto_fit;
+        self
+    }
+
+    /// Show guide lines around the image.
+    #[inline]
+    pub fn guide_lines(mut self, guide_lines: bool) -> Self {
+        self.guide_lines = guide_lines;
         self
     }
 }
@@ -1349,7 +1358,7 @@ impl PlotItem for PlotImage {
             },
             &(*texture_id, image_screen_rect.size()).into(),
         );
-        if base.highlight {
+        if base.highlight || self.guide_lines {
             let center = image_screen_rect.center();
             let rotation = Rot2::from_angle(screen_rotation);
             let outline = [
@@ -1365,6 +1374,65 @@ impl PlotItem for PlotImage {
                 outline,
                 Stroke::new(1.0, ui.visuals().strong_text_color()),
             ));
+        }
+
+        if self.guide_lines {
+            // 中心十字线
+            let center = image_screen_rect.center();
+            let rotation = Rot2::from_angle(screen_rotation);
+            let half_size = image_screen_rect.size() / 2.0;
+            let horizontal_line = [
+                center + rotation * vec2(-half_size.x, 0.0),
+                center + rotation * vec2(half_size.x, 0.0),
+            ];
+            let vertical_line = [
+                center + rotation * vec2(0.0, -half_size.y),
+                center + rotation * vec2(0.0, half_size.y),
+            ];
+            let center_stroke = Stroke::new(1.0, Color32::GREEN);
+            shapes.push(Shape::line_segment(horizontal_line, center_stroke));
+            shapes.push(Shape::line_segment(vertical_line, center_stroke));
+            // 对角线
+            let diag1 = [
+                center + rotation * vec2(-half_size.x, -half_size.y),
+                center + rotation * vec2(half_size.x, half_size.y),
+            ];
+            let diag2 = [
+                center + rotation * vec2(-half_size.x, half_size.y),
+                center + rotation * vec2(half_size.x, -half_size.y),
+            ];
+            let diag_stroke = Stroke::new(1.0, Color32::GOLD);
+            shapes.push(Shape::line_segment(diag1, diag_stroke));
+            shapes.push(Shape::line_segment(diag2, diag_stroke));
+            // 剪裁线（四边 10%、20%）基于图像矩形并应用旋转
+            let clip_rect = image_screen_rect;
+            let clip_size = clip_rect.max - clip_rect.min;
+            let offsets = [0.1, 0.2, 0.8, 0.9];
+            // 不同偏移使用不同颜色：10%、90% 使用 PURPLE，20%、80% 使用 YELLOW
+            let inner_stroke = Stroke::new(1.0, Color32::PURPLE);
+            let outer_stroke = Stroke::new(1.0, Color32::YELLOW);
+            let center = clip_rect.center();
+            // rotation 已在外层定义（基于 screen_rotation），直接复用即可
+            for offset in &offsets {
+                let x = clip_rect.min.x + clip_size.x * *offset;
+                let p0 = center + rotation * (pos2(x, clip_rect.min.y) - center);
+                let p1 = center + rotation * (pos2(x, clip_rect.max.y) - center);
+                if [0.1, 0.9].contains(offset) {
+                    shapes.push(Shape::line_segment([p0, p1], inner_stroke.clone()));
+                } else {
+                    shapes.push(Shape::line_segment([p0, p1], outer_stroke.clone()));
+                }
+            }
+            for offset in &offsets {
+                let y = clip_rect.min.y + clip_size.y * *offset;
+                let p0 = center + rotation * (pos2(clip_rect.min.x, y) - center);
+                let p1 = center + rotation * (pos2(clip_rect.max.x, y) - center);
+                if [0.1, 0.9].contains(offset) {
+                    shapes.push(Shape::line_segment([p0, p1], inner_stroke.clone()));
+                } else {
+                    shapes.push(Shape::line_segment([p0, p1], outer_stroke.clone()));
+                }
+            }
         }
     }
 
