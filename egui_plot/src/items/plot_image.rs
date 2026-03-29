@@ -32,6 +32,7 @@ pub struct PlotImage {
     pub(crate) bg_fill: Color32,
     pub(crate) tint: Color32,
     pub(crate) auto_fit: bool,
+    pub(crate) guide_lines: bool,
 }
 
 impl PlotImage {
@@ -52,6 +53,7 @@ impl PlotImage {
             bg_fill: Default::default(),
             tint: Color32::WHITE,
             auto_fit: false,
+            guide_lines: false,
         }
     }
 
@@ -91,6 +93,13 @@ impl PlotImage {
     #[inline]
     pub fn auto_fit(mut self, auto_fit: bool) -> Self {
         self.auto_fit = auto_fit;
+        self
+    }
+
+    /// Show guide lines over the image bounds.
+    #[inline]
+    pub fn guide_lines(mut self, guide_lines: bool) -> Self {
+        self.guide_lines = guide_lines;
         self
     }
 
@@ -149,6 +158,7 @@ impl PlotItem for PlotImage {
             tint,
             base,
             auto_fit,
+            guide_lines,
             ..
         } = self;
         let image_screen_rect = if *auto_fit {
@@ -184,7 +194,7 @@ impl PlotItem for PlotImage {
             },
             &(*texture_id, image_screen_rect.size()).into(),
         );
-        if base.highlight {
+        if base.highlight || *guide_lines {
             let center = image_screen_rect.center();
             let rotation = Rot2::from_angle(screen_rotation);
             let outline = [
@@ -200,6 +210,65 @@ impl PlotItem for PlotImage {
                 outline,
                 Stroke::new(1.0, ui.visuals().strong_text_color()),
             ));
+        }
+
+        if *guide_lines {
+            let center = image_screen_rect.center();
+            let rotation = Rot2::from_angle(screen_rotation);
+            let half_size = image_screen_rect.size() / 2.0;
+
+            let horizontal = [
+                center + rotation * Vec2::new(-half_size.x, 0.0),
+                center + rotation * Vec2::new(half_size.x, 0.0),
+            ];
+            let vertical = [
+                center + rotation * Vec2::new(0.0, -half_size.y),
+                center + rotation * Vec2::new(0.0, half_size.y),
+            ];
+            let center_stroke = Stroke::new(1.0, Color32::GREEN);
+            shapes.push(Shape::line_segment(horizontal, center_stroke));
+            shapes.push(Shape::line_segment(vertical, center_stroke));
+
+            let diagonal_1 = [
+                center + rotation * Vec2::new(-half_size.x, -half_size.y),
+                center + rotation * Vec2::new(half_size.x, half_size.y),
+            ];
+            let diagonal_2 = [
+                center + rotation * Vec2::new(-half_size.x, half_size.y),
+                center + rotation * Vec2::new(half_size.x, -half_size.y),
+            ];
+            let diagonal_stroke = Stroke::new(1.0, Color32::GOLD);
+            shapes.push(Shape::line_segment(diagonal_1, diagonal_stroke));
+            shapes.push(Shape::line_segment(diagonal_2, diagonal_stroke));
+
+            let clip_size = image_screen_rect.size();
+            let guide_offsets = [0.1, 0.2, 0.8, 0.9];
+            let inner_stroke = Stroke::new(1.0, Color32::PURPLE);
+            let outer_stroke = Stroke::new(1.0, Color32::YELLOW);
+
+            for offset in guide_offsets {
+                let x = image_screen_rect.min.x + clip_size.x * offset;
+                let p0 = center + rotation * (pos2(x, image_screen_rect.min.y) - center);
+                let p1 = center + rotation * (pos2(x, image_screen_rect.max.y) - center);
+                let stroke = if offset == 0.1 || offset == 0.9 {
+                    inner_stroke
+                } else {
+                    outer_stroke
+                };
+                shapes.push(Shape::line_segment([p0, p1], stroke));
+            }
+
+            for offset in guide_offsets {
+                let y = image_screen_rect.min.y + clip_size.y * offset;
+                let p0 = center + rotation * (pos2(image_screen_rect.min.x, y) - center);
+                let p1 = center + rotation * (pos2(image_screen_rect.max.x, y) - center);
+                let stroke = if offset == 0.1 || offset == 0.9 {
+                    inner_stroke
+                } else {
+                    outer_stroke
+                };
+                shapes.push(Shape::line_segment([p0, p1], stroke));
+            }
         }
     }
 
