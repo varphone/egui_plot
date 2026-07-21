@@ -16,11 +16,11 @@ impl PlotExample for ItemsExample {
     }
 
     fn description(&self) -> &'static str {
-        "This example demonstrates the various plot items available in `egui_plot`, including lines, polygons, points, arrows, text, images, and horizontal/vertical lines. It showcases the different visual elements you can add to a plot."
+        "This example demonstrates the various plot items available in `egui_plot`, including lines, polygons, points, arrows, text, images, horizontal/vertical lines, arc lines, pies, and pie charts. It showcases the different visual elements you can add to a plot."
     }
 
     fn tags(&self) -> &'static [&'static str] {
-        &["items", "lines", "polygons", "arrows", "text"]
+        &["items", "lines", "polygons", "arrows", "text", "pies"]
     }
 
     fn thumbnail_bytes(&self) -> &'static [u8] {

@@ -3,10 +3,13 @@ use std::f64::consts::TAU;
 use eframe::egui;
 use eframe::egui::Response;
 use egui::vec2;
+use egui_plot::ArcLine;
 use egui_plot::Arrows;
 use egui_plot::HLine;
 use egui_plot::Legend;
 use egui_plot::Line;
+use egui_plot::Pie;
+use egui_plot::PieChart;
 use egui_plot::Plot;
 use egui_plot::PlotImage;
 use egui_plot::PlotPoint;
@@ -60,6 +63,39 @@ impl ItemsExample {
             5.0 * vec2(texture.aspect_ratio(), 1.0),
         );
 
+        let arc_line = ArcLine::new(
+            "Arc line",
+            PlotPoint::new(0.0, -10.0),
+            3.0,
+            225.0f32.to_radians(),
+            135.0f32.to_radians(),
+        );
+        let pie = Pie::new(
+            "Pie",
+            PlotPoint::new(0.0, -10.0),
+            3.0,
+            -45.0f32.to_radians(),
+            45.0f32.to_radians(),
+        );
+        let pie_chart_data = vec![16.41, 10.21, 9.76, 8.94, 6.77, 2.89, 1.85, 1.70, 1.61, 1.47, 38.39];
+        let pie_chart_labels = vec![
+            "Python".to_owned(),
+            "C".to_owned(),
+            "C++".to_owned(),
+            "Java".to_owned(),
+            "C#".to_owned(),
+            "JavaScript".to_owned(),
+            "Go".to_owned(),
+            "Visual Basic".to_owned(),
+            "Fortran".to_owned(),
+            "SQL".to_owned(),
+            "Others".to_owned(),
+        ];
+        let pie_chart = PieChart::new("TIOBE - April 2024 (L)", [-12.0, 0.0], 3.5, pie_chart_data.clone())
+            .labels(pie_chart_labels.clone());
+        let exploded_pies =
+            PieChart::new("TIOBE - April 2024 (R)", [12.0, 0.0], 3.5, pie_chart_data).labels(pie_chart_labels);
+
         let plot = Plot::new("items_demo")
             .legend(
                 Legend::default()
@@ -83,6 +119,12 @@ impl ItemsExample {
             plot_ui.text(Text::new("Text", PlotPoint::new(2.5, -2.0), "such plot").id("text3"));
             plot_ui.image(image.name("Image"));
             plot_ui.arrows(arrows.name("Arrows"));
+            plot_ui.arc_line(arc_line);
+            plot_ui.pie(pie);
+            plot_ui.pie_chart(pie_chart);
+            for slice in exploded_pies.to_pies() {
+                plot_ui.pie(slice);
+            }
         })
         .response
     }

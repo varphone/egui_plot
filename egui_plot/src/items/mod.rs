@@ -22,6 +22,10 @@ use crate::bounds::PlotBounds;
 use crate::bounds::PlotPoint;
 use crate::cursor::Cursor;
 use crate::item_id::ItemId;
+
+pub use crate::items::arc_pie::ArcLine;
+pub use crate::items::arc_pie::Pie;
+pub use crate::items::arc_pie::PieChart;
 pub use crate::items::arrows::Arrows;
 pub use crate::items::bar_chart::Bar;
 pub use crate::items::bar_chart::BarChart;
@@ -44,6 +48,7 @@ use crate::label::HoverPosition;
 use crate::label::LabelFormatterFn;
 use crate::rect_elem::RectElement;
 
+mod arc_pie;
 mod arrows;
 mod bar_chart;
 mod box_plot;
@@ -78,7 +83,6 @@ impl PlotItemBase {
         }
     }
 }
-
 /// Container to pass-through several parameters related to plot visualization
 pub struct PlotConfig<'a> {
     /// Reference to the UI.
