@@ -510,7 +510,7 @@ impl PieChart {
         for (i, v) in self.data.iter().enumerate() {
             let end_angle = start_angle + (v / sum) * TAU;
             let default_color = auto_color(start_angle, end_angle);
-            let name = self.labels.get(i).map_or(Default::default(), |s| s.clone());
+            let name = self.labels.get(i).map_or_else(Default::default, |s| s.clone());
             let fill = self.colors.get(i).map_or(default_color, |v| *v);
             let pie = Pie::new(name, self.center, self.radius, start_angle as f32, end_angle as f32)
                 .fill(fill)
