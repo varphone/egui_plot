@@ -9,6 +9,7 @@ use egui::Ui;
 use egui::WidgetText;
 use egui::epaint::TextShape;
 use emath::Align2;
+use emath::Rot2;
 
 use crate::axis::PlotTransform;
 use crate::bounds::PlotBounds;
@@ -25,6 +26,7 @@ impl Text {
             position,
             color: Color32::TRANSPARENT,
             anchor: Align2::CENTER_CENTER,
+            angle: 0.0,
         }
     }
 
@@ -39,6 +41,13 @@ impl Text {
     #[inline]
     pub fn anchor(mut self, anchor: Align2) -> Self {
         self.anchor = anchor;
+        self
+    }
+
+    /// Rotate text by this many radians clockwise around its anchor point.
+    #[inline]
+    pub fn angle(mut self, angle: impl Into<f32>) -> Self {
+        self.angle = angle.into();
         self
     }
 
@@ -99,17 +108,48 @@ impl PlotItem for Text {
                 .into_galley(ui, Some(egui::TextWrapMode::Extend), f32::INFINITY, TextStyle::Small);
 
         let pos = transform.position_from_point(&self.position);
-        let rect = self.anchor.anchor_size(pos, galley.size());
+        let size = galley.size();
+        let rect = self.anchor.anchor_size(pos, size);
 
-        shapes.push(TextShape::new(rect.min, galley, color).into());
+        let text_pos = if self.angle != 0.0 {
+            let offset = rect.min - pos;
+            let rotated_offset = Rot2::from_angle(self.angle) * offset;
+            pos + rotated_offset
+        } else {
+            rect.min
+        };
+
+        shapes.push(TextShape::new(text_pos, galley, color).with_angle(self.angle).into());
 
         if self.base.highlight {
-            shapes.push(Shape::rect_stroke(
-                rect.expand(1.0),
-                1.0,
-                Stroke::new(0.5, color),
-                egui::StrokeKind::Outside,
-            ));
+            if self.angle != 0.0 {
+                let rect = self.anchor.anchor_size(pos, size).expand(1.0);
+                let rotation = Rot2::from_angle(self.angle);
+                let corners = [
+                    rect.left_top(),
+                    rect.right_top(),
+                    rect.right_bottom(),
+                    rect.left_bottom(),
+                ];
+
+                let rotated_corners = corners
+                    .iter()
+                    .map(|&corner| {
+                        let offset = corner - pos;
+                        let rotated_offset = rotation * offset;
+                        pos + rotated_offset
+                    })
+                    .collect();
+
+                shapes.push(Shape::closed_line(rotated_corners, Stroke::new(0.5, color)));
+            } else {
+                shapes.push(Shape::rect_stroke(
+                    rect.expand(1.0),
+                    1.0,
+                    Stroke::new(0.5, color),
+                    egui::StrokeKind::Outside,
+                ));
+            }
         }
     }
 
@@ -146,4 +186,5 @@ pub struct Text {
     pub(crate) position: PlotPoint,
     pub(crate) color: Color32,
     pub(crate) anchor: Align2,
+    pub(crate) angle: f32,
 }
