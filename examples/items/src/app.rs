@@ -19,9 +19,22 @@ use egui_plot::Polygon;
 use egui_plot::Text;
 use egui_plot::VLine;
 
-#[derive(Default)]
 pub struct ItemsExample {
     texture: Option<egui::TextureHandle>,
+    x_align: egui::Align,
+    y_align: egui::Align,
+    angle: f32,
+}
+
+impl Default for ItemsExample {
+    fn default() -> Self {
+        Self {
+            texture: None,
+            x_align: egui::Align::Center,
+            y_align: egui::Align::Center,
+            angle: 0.0,
+        }
+    }
 }
 
 impl ItemsExample {
@@ -106,6 +119,16 @@ impl ItemsExample {
             .show_y(false)
             .data_aspect(1.0);
         plot.show(ui, |plot_ui| {
+            plot_ui.line(
+                Line::new("", vec![[-1.0, 1.0], [1.0, -1.0]])
+                    .color(egui::Color32::CYAN)
+                    .allow_hover(false),
+            );
+            plot_ui.line(
+                Line::new("", vec![[-1.0, -1.0], [1.0, 1.0]])
+                    .color(egui::Color32::CYAN)
+                    .allow_hover(false),
+            );
             plot_ui.hline(HLine::new("Lines horizontal", 9.0));
             plot_ui.hline(HLine::new("Lines horizontal", -9.0));
             plot_ui.vline(VLine::new("Lines vertical", 9.0));
@@ -113,6 +136,17 @@ impl ItemsExample {
             plot_ui.line(line.name("Line with fill").id("line_with_fill"));
             plot_ui.polygon(polygon.name("Convex polygon").id("convex_polygon"));
             plot_ui.points(points.name("Points with stems").id("points_with_stems"));
+            plot_ui.text(
+                Text::new(
+                    "Rotated Text",
+                    PlotPoint::new(0.0, 0.0),
+                    egui::RichText::new("Rotated Text").size(20.0),
+                )
+                .anchor(egui::Align2([self.x_align, self.y_align]))
+                .angle(self.angle.to_radians())
+                .highlight(true)
+                .id("rotated_text"),
+            );
             plot_ui.text(Text::new("Text", PlotPoint::new(-3.0, -3.0), "wow").id("text0"));
             plot_ui.text(Text::new("Text", PlotPoint::new(-2.0, 2.5), "so graph").id("text1"));
             plot_ui.text(Text::new("Text", PlotPoint::new(3.0, 3.0), "much color").id("text2"));
@@ -129,9 +163,29 @@ impl ItemsExample {
         .response
     }
 
-    #[expect(clippy::unused_self, reason = "required by the example template")]
-    pub fn show_controls(&self, ui: &mut egui::Ui) -> Response {
-        // No controls for this example
-        ui.scope(|_ui| {}).response
+    pub fn show_controls(&mut self, ui: &mut egui::Ui) -> Response {
+        egui::Grid::new("items_text_controls")
+            .show(ui, |ui| {
+                ui.label("Rotated text X align:");
+                ui.horizontal(|ui| {
+                    for align in [egui::Align::Min, egui::Align::Center, egui::Align::Max] {
+                        ui.selectable_value(&mut self.x_align, align, format!("{align:?}"));
+                    }
+                });
+                ui.end_row();
+
+                ui.label("Rotated text Y align:");
+                ui.horizontal(|ui| {
+                    for align in [egui::Align::Min, egui::Align::Center, egui::Align::Max] {
+                        ui.selectable_value(&mut self.y_align, align, format!("{align:?}"));
+                    }
+                });
+                ui.end_row();
+
+                ui.label("Rotated text angle:");
+                ui.add(egui::DragValue::new(&mut self.angle).speed(1.0).suffix("°"));
+                ui.end_row();
+            })
+            .response
     }
 }
