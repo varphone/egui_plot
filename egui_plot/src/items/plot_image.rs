@@ -31,6 +31,8 @@ pub struct PlotImage {
     pub(crate) rotation: f64,
     pub(crate) bg_fill: Color32,
     pub(crate) tint: Color32,
+    pub(crate) auto_fit: bool,
+    pub(crate) guide_lines: bool,
 }
 
 impl PlotImage {
@@ -50,6 +52,8 @@ impl PlotImage {
             rotation: 0.0,
             bg_fill: Default::default(),
             tint: Color32::WHITE,
+            auto_fit: false,
+            guide_lines: false,
         }
     }
 
@@ -79,6 +83,23 @@ impl PlotImage {
     #[inline]
     pub fn rotate(mut self, angle: f64) -> Self {
         self.rotation = angle;
+        self
+    }
+
+    /// Fit the image to the plot clip rect while preserving the aspect ratio.
+    ///
+    /// When enabled, `position` is ignored and `size` is treated as the image's
+    /// original size.
+    #[inline]
+    pub fn auto_fit(mut self, auto_fit: bool) -> Self {
+        self.auto_fit = auto_fit;
+        self
+    }
+
+    /// Show guide lines over the image bounds.
+    #[inline]
+    pub fn guide_lines(mut self, guide_lines: bool) -> Self {
+        self.guide_lines = guide_lines;
         self
     }
 
@@ -136,9 +157,23 @@ impl PlotItem for PlotImage {
             bg_fill,
             tint,
             base,
+            auto_fit,
+            guide_lines,
             ..
         } = self;
-        let image_screen_rect = {
+        let image_screen_rect = if *auto_fit {
+            let clip_rect = ui.clip_rect().shrink(2.0);
+            let clip_size = clip_rect.size();
+            let clip_aspect = clip_size.x / clip_size.y;
+            let image_aspect = size.x / size.y;
+            let scale = if clip_aspect > image_aspect {
+                clip_size.y / size.y
+            } else {
+                clip_size.x / size.x
+            };
+            let scaled_size = *size * scale;
+            Rect::from_center_size(clip_rect.center(), scaled_size)
+        } else {
             let left_top = PlotPoint::new(position.x - 0.5 * size.x as f64, position.y - 0.5 * size.y as f64);
             let right_bottom = PlotPoint::new(position.x + 0.5 * size.x as f64, position.y + 0.5 * size.y as f64);
             let left_top_screen = transform.position_from_point(&left_top);
@@ -159,7 +194,7 @@ impl PlotItem for PlotImage {
             },
             &(*texture_id, image_screen_rect.size()).into(),
         );
-        if base.highlight {
+        if base.highlight || *guide_lines {
             let center = image_screen_rect.center();
             let rotation = Rot2::from_angle(screen_rotation);
             let outline = [
@@ -176,6 +211,65 @@ impl PlotItem for PlotImage {
                 Stroke::new(1.0, ui.visuals().strong_text_color()),
             ));
         }
+
+        if *guide_lines {
+            let center = image_screen_rect.center();
+            let rotation = Rot2::from_angle(screen_rotation);
+            let half_size = image_screen_rect.size() / 2.0;
+
+            let horizontal = [
+                center + rotation * Vec2::new(-half_size.x, 0.0),
+                center + rotation * Vec2::new(half_size.x, 0.0),
+            ];
+            let vertical = [
+                center + rotation * Vec2::new(0.0, -half_size.y),
+                center + rotation * Vec2::new(0.0, half_size.y),
+            ];
+            let center_stroke = Stroke::new(1.0, Color32::GREEN);
+            shapes.push(Shape::line_segment(horizontal, center_stroke));
+            shapes.push(Shape::line_segment(vertical, center_stroke));
+
+            let diagonal_1 = [
+                center + rotation * Vec2::new(-half_size.x, -half_size.y),
+                center + rotation * Vec2::new(half_size.x, half_size.y),
+            ];
+            let diagonal_2 = [
+                center + rotation * Vec2::new(-half_size.x, half_size.y),
+                center + rotation * Vec2::new(half_size.x, -half_size.y),
+            ];
+            let diagonal_stroke = Stroke::new(1.0, Color32::GOLD);
+            shapes.push(Shape::line_segment(diagonal_1, diagonal_stroke));
+            shapes.push(Shape::line_segment(diagonal_2, diagonal_stroke));
+
+            let clip_size = image_screen_rect.size();
+            let guide_offsets = [0.1, 0.2, 0.8, 0.9];
+            let inner_stroke = Stroke::new(1.0, Color32::PURPLE);
+            let outer_stroke = Stroke::new(1.0, Color32::YELLOW);
+
+            for offset in guide_offsets {
+                let x = image_screen_rect.min.x + clip_size.x * offset;
+                let p0 = center + rotation * (pos2(x, image_screen_rect.min.y) - center);
+                let p1 = center + rotation * (pos2(x, image_screen_rect.max.y) - center);
+                let stroke = if offset == 0.1 || offset == 0.9 {
+                    inner_stroke
+                } else {
+                    outer_stroke
+                };
+                shapes.push(Shape::line_segment([p0, p1], stroke));
+            }
+
+            for offset in guide_offsets {
+                let y = image_screen_rect.min.y + clip_size.y * offset;
+                let p0 = center + rotation * (pos2(image_screen_rect.min.x, y) - center);
+                let p1 = center + rotation * (pos2(image_screen_rect.max.x, y) - center);
+                let stroke = if offset == 0.1 || offset == 0.9 {
+                    inner_stroke
+                } else {
+                    outer_stroke
+                };
+                shapes.push(Shape::line_segment([p0, p1], stroke));
+            }
+        }
     }
 
     fn initialize(&mut self, _x_range: RangeInclusive<f64>) {}
@@ -190,16 +284,18 @@ impl PlotItem for PlotImage {
 
     fn bounds(&self) -> PlotBounds {
         let mut bounds = PlotBounds::NOTHING;
-        let left_top = PlotPoint::new(
-            self.position.x as f32 - self.size.x / 2.0,
-            self.position.y as f32 - self.size.y / 2.0,
-        );
-        let right_bottom = PlotPoint::new(
-            self.position.x as f32 + self.size.x / 2.0,
-            self.position.y as f32 + self.size.y / 2.0,
-        );
-        bounds.extend_with(&left_top);
-        bounds.extend_with(&right_bottom);
+        if !self.auto_fit {
+            let left_top = PlotPoint::new(
+                self.position.x as f32 - self.size.x / 2.0,
+                self.position.y as f32 - self.size.y / 2.0,
+            );
+            let right_bottom = PlotPoint::new(
+                self.position.x as f32 + self.size.x / 2.0,
+                self.position.y as f32 + self.size.y / 2.0,
+            );
+            bounds.extend_with(&left_top);
+            bounds.extend_with(&right_bottom);
+        }
         bounds
     }
 
